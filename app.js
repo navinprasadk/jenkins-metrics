@@ -2,6 +2,7 @@ const express = require('express')
 const request = require('request');
 const json2xls = require('json2xls');
 const fs = require('fs');
+var alasql = require('alasql');
 const app = express()
 const port = 3000
 
@@ -37,7 +38,7 @@ app.get('/', (req, res) => {
     //   }).end();
 
 
-    request("http://52.168.160.132:8082/view/navin/job/NodeJS%20example/api/json", {
+    request("http://52.168.160.132:8082/view/navin/job/seed%20project/api/json", {
         method: "GET",
         auth: {
           user: 'rig',
@@ -47,13 +48,56 @@ app.get('/', (req, res) => {
           if (!error && response.statusCode == 200) {
             const jobDetail = JSON.parse(body);
             let dataForExcel = [];
-            dataForExcel.push({ "name": jobDetail.name,"description":jobDetail.description, "buildCount":jobDetail.nextBuildNumber-1})
-            let buildDetails= jobDetail.builds.map(detail => {
-                console.log("detail.url",detail.url);
-                getBuildDetails(detail.url);
-            })
-            var xls = json2xls(dataForExcel);
-            // fs.writeFileSync(jobDetail.name+'.xlsx', xls, 'binary');
+            let jobDetails = {};
+            let buildDetails = [];
+
+            let bil = jobDetail.builds.map((detail,key) => {
+                  let info = {};
+                  request(detail.url+"api/json", {
+                      method: "GET",
+                      auth: {
+                        user: 'rig',
+                        pass: 'rig'
+                      }
+                    }, function (error, response, body) {
+                        if (!error && response.statusCode == 200) {
+                          let buildDetail = JSON.parse(body);
+                          info =
+                            {
+                              buildStatus:buildDetail.result, 
+                              userName:buildDetail.actions[0].causes[0].userName != undefined ? buildDetail.actions[0].causes[0].userName : "",
+                              buildDuration: buildDetail.duration,
+                              buildNumber: buildDetail.number
+                          };
+                        } else {
+                          console.log('error', error, response && response.statusCode);
+                        } 
+                    buildDetails.push(info);
+                    if(jobDetail.builds.length === key+1 ) {
+                        jobDetails["name"] = jobDetail.name;
+                        jobDetails["description"] = jobDetail.description;
+                        jobDetails["buildCount"] = jobDetail.nextBuildNumber-1;
+                        jobDetails["buildDetails"] = buildDetails;
+                        dataForExcel[0] = jobDetails;
+                        // Here is search query
+                        // var customised = alasql('SEARCH / AS @a \
+                        //       UNION ALL( \
+                        //         buildDetails AS @b \
+                        //         RETURN(@a->buildNumber AS buildNumber, @a->buildStatus AS buildStatus, @a->buildDuration AS buildDuration, \
+                        //           @a->buildNumber AS buildNumber, @a->visible AS visible, \
+                        //           @b->id as [buildDetails.buildNumber], \
+                        //         ) \
+                        //       ) INTO XLSX("test411.xlsx",{headers:true})\
+                        //       FROM ?',[dataForExcel]);
+                        // console.log("customised",customised);
+                        var xls = json2xls(dataForExcel);
+                        fs.writeFileSync(jobDetail.name+'.xlsx', xls, 'binary');
+                    }
+                    });
+                   
+                    // return info;
+              })
+           
           } else {
             console.log('error', error, response && response.statusCode);
           }
@@ -61,22 +105,8 @@ app.get('/', (req, res) => {
 })
 
 getBuildDetails = (url) => {
-    request(url+"api/json", {
-        method: "GET",
-        auth: {
-          user: 'rig',
-          pass: 'rig'
-        }
-      }, function (error, response, body) {
-          if (!error && response.statusCode == 200) {
-            let buildDetail = JSON.parse(body);
-            let detailsArr = [];
-            detailsArr.push({buildStatus:buildDetail.result, userName:buildDetail.actions[0].causes[0].userName})
-            console.log("detailsArr",detailsArr);
-          } else {
-            console.log('error', error, response && response.statusCode);
-          }
-      });
+    let buildInfo = {};
+   
 }
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))

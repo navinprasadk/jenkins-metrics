@@ -9,6 +9,7 @@
   "author": "navin",
   "license": "ISC",
   "dependencies": {
+    "alasql": "^0.4.11",
     "express": "^4.16.4",
     "json2xls": "^0.1.2",
     "request": "^2.88.0"
