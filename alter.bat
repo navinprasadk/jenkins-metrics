@@ -1,6 +1,6 @@
 rem echo off
 
-SET Server=.\sqlexpress
+SET Server=.\nicean.cjquxgucf2u8.ap-south-1.rds.amazonaws.com:1433
 SET LogFile=DB.log
 
 sqlcmd -e -E -S %Server% -d NiceAN -i "Alter\01_TicketLayout.sql" >> %LogFile% 2>&1
